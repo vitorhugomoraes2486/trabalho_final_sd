@@ -16,3 +16,5 @@ Caracteríticas Utilizadas:
   - Escalabilidade Horizontal
     O design do seu código deve permitir que novas instâncias do script do Worker se conectem ao Flask a qualquer momento da execução, sem precisar reiniciar o servidor principal.
 
+
+<img width="532" height="664" alt="Arquitetura_password_cracker drawio" src="https://github.com/user-attachments/assets/e3957144-4ff3-4793-9147-24e0226446b8" />
