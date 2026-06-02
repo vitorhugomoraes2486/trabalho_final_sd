@@ -4,19 +4,23 @@
 O projeto final de Sistemas Distribuídos, tem como objetivo a implementação de características que apresentarão uma possibilidade de escalamento horiontal do projeto, unido a transparência de localização dos nós.
 
 1. Descrição Geral do Projeto.
-  O trabalho é um sistema distribuído de computação paralela intensiva baseado na arquitetura Mestre/Escravo (Master/Slave), projetado para realizar a quebra de senhas criptografadas em hashes MD5 por meio de força bruta.
+2. 
+  O trabalho é um sistema distribuído de computação paralela intensiva baseado na arquitetura Mestre/Escravo (Master/Slave), projetado para realizar a quebra de senhas criptografadas em hashes MD5 por meio de força bruta;
   O objetivo principal do sistema é demonstrar  a eficiência na divisão de carga ao fatiar um problema complexo em múltiplos lotes independentes compartilhados na rede. O sistema adota Replicação de Banco de Dados para otimizar o fluxo de dados e mitigar gargalos de concorrência.
 
-2. Componentes do Sistema.
+3. Componentes do Sistema.
   O ecossistema é dividido em quatro componentes principais com responsabilidades totalmente isoladas:
     2.1 Cliente (User Application): É a interface (via script ou página web) utilizada pelo usuário final. Sua única função é enviar o hash alvo para o servidor Mestre e, opcionalmente, monitorar o progresso do sistema;
+   
     2.2 Servidor Mestre (Master): Desenvolvido em Python com o micro-framework Flask. Ele atua como o cérebro coordenador do sistema. Não realiza processamento de força bruta; suas funções são receber requisições HTTP, gerar a fila de lotes iniciais no banco de dados, gerenciar as atualizações de estado e centralizar a notificação de término;
+   
     2.3 Nós Escravos (Slaves/Workers): Scripts Python independentes executados em paralelo (podendo rodar na mesma máquina ou em múltiplos computadores na rede). Eles contêm a lógica pesada de força bruta (geração de strings e computação de hashes com hashlib) e consomem a fila de tarefas de forma autônoma;
+   
     2.4 Camada de Dados Replicada (Master DB e Slave DB): Dois containers PostgreSQL isolados rodando via Docker.
         Master DB: Banco de escrita exclusiva. Armazena a tabela central de tarefas e recebe atualizações de status;
         Slave DB: Banco de leitura exclusiva. Recebe os dados espelhados do Master e é consultado em massa pelos Slaves.
 
-3. Comunicação Inter-Componentes.
+4. Comunicação Inter-Componentes.
   3.1 Inicialização: O Cliente faz uma resolução de nomes via DNS para localizar o endereço lógico "mestre-crack.local" sem precisar conhecer o IP físico do servidor. Ele envia uma requisição contendo o hash;
   3.2 Carga e Replicação: O Mestre recebe o hash, limpa o histórico e insere 26 lotes (um para cada letra inicial do alfabeto) com o status de "disponivel" diretamente no Master DB. O mecanismo do Docker realiza a Replicação por Streaming, espelhando instantaneamente esses lotes para o Slave DB;
   3.3 Consumo Assíncrono (Read): Os Slaves realizam consultas SQL diretamente no Slave DB para identificar quais lotes estão disponíveis;
