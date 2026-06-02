@@ -3,11 +3,13 @@
 
 O projeto final de Sistemas Distribuídos, tem como objetivo a implementação de características que apresentarão uma possibilidade de escalamento horiontal do projeto, unido a transparência de localização dos nós.
 
+
 1. Descrição Geral do Projeto.
    
   O trabalho é um sistema distribuído de computação paralela intensiva baseado na arquitetura Mestre/Escravo (Master/Slave), projetado para realizar a quebra de senhas criptografadas em hashes MD5 por meio de força bruta;
   
   O objetivo principal do sistema é demonstrar  a eficiência na divisão de carga ao fatiar um problema complexo em múltiplos lotes independentes compartilhados na rede. O sistema adota Replicação de Banco de Dados para otimizar o fluxo de dados e mitigar gargalos de concorrência.
+
 
 2. Componentes do Sistema.
    
@@ -23,6 +25,7 @@ O projeto final de Sistemas Distribuídos, tem como objetivo a implementação d
         Master DB: Banco de escrita exclusiva. Armazena a tabela central de tarefas e recebe atualizações de status;
         Slave DB: Banco de leitura exclusiva. Recebe os dados espelhados do Master e é consultado em massa pelos Slaves.
 
+
 3. Comunicação Inter-Componentes.
    
   3.1 Inicialização: O Cliente faz uma resolução de nomes via DNS para localizar o endereço lógico "mestre-crack.local" sem precisar conhecer o IP físico do servidor. Ele envia uma requisição contendo o hash;
@@ -35,12 +38,14 @@ O projeto final de Sistemas Distribuídos, tem como objetivo a implementação d
   
   3.5 Término Distribuído: O Slave processa a força bruta localmente na sua CPU. Se encontrar a senha, ele envia um "sucesso" para o Mestre, que encerra o ecossistema e exibe o resultado.
 
+
 4. Características de Sistemas Distribuídos Utilizadas.
 
   4.1 Transparência de Localização: Quando o Cliente envia o hash via requisição HTTP, ele perde o rastro de como o problema será resolvido. Ele não sabe se o Lote 'A' está sendo computado por um script na máquina do da pessoa ao lado, se o Lote 'B' está rodando em uma máquina virtual, ou se os dados estão guardados em um container isolado do Docker;
 
   4.2 Escalabilidade Horizontal: Como o Mestre não precisa conhecer previamente a identidade ou a quantidade de escravos na rede, pode-se iniciar o processamento com apenas 1 Slave e, no meio da execução, abrir mais terminais rodando o código do slave.
     
+
 
 
 
