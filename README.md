@@ -13,15 +13,15 @@ O projeto final de Sistemas Distribuídos, tem como objetivo a implementação d
 
 2. Componentes do Sistema.
    
-  O ecossistema é dividido em quatro componentes principais com responsabilidades totalmente isoladas.
+     O ecossistema é dividido em quatro componentes principais com responsabilidades totalmente isoladas.
   
-  2.1 Cliente: É a interface (via script ou página web) utilizada pelo usuário final. Sua única função é enviar o hash alvo para o servidor Mestre e, opcionalmente, monitorar o progresso do sistema;
+     2.1 Cliente: É a interface (via script ou página web) utilizada pelo usuário final. Sua única função é enviar o hash alvo para o servidor Mestre e, opcionalmente, monitorar o progresso do sistema;
    
-  2.2 Servidor Mestre (Master): Desenvolvido em Python com o micro-framework Flask. Ele atua como o cérebro coordenador do sistema. Não realiza processamento de força bruta; suas funções são receber requisições HTTP, gerar a fila de lotes iniciais no banco de dados, gerenciar as atualizações de estado e centralizar a notificação de término;
+     2.2 Servidor Mestre (Master): Desenvolvido em Python com o micro-framework Flask. Ele atua como o cérebro coordenador do sistema. Não realiza processamento de força bruta; suas funções são receber requisições HTTP, gerar a fila de lotes iniciais no banco de dados, gerenciar as atualizações de estado e centralizar a notificação de término;
    
-  2.3 Nós Escravos (Slaves/Workers): Scripts Python independentes executados em paralelo (podendo rodar na mesma máquina ou em múltiplos computadores na rede). Eles contêm a lógica pesada de força bruta (geração de strings e computação de hashes com hashlib) e consomem a fila de tarefas de forma autônoma;
+     2.3 Nós Escravos (Slaves/Workers): Scripts Python independentes executados em paralelo (podendo rodar na mesma máquina ou em múltiplos computadores na rede). Eles contêm a lógica pesada de força bruta (geração de strings e computação de hashes com hashlib) e consomem a fila de tarefas de forma autônoma;
    
-  2.4 Camada de Dados Replicada: Dois containers PostgreSQL isolados rodando via Docker.
+     2.4 Camada de Dados Replicada: Dois containers PostgreSQL isolados rodando via Docker.
         Master DB: Banco de escrita exclusiva. Armazena a tabela central de tarefas e recebe atualizações de status;
         Slave DB: Banco de leitura exclusiva. Recebe os dados espelhados do Master e é consultado em massa pelos Slaves.
 
