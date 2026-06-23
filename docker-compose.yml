@@ -6,17 +6,34 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mestre_senha123
       POSTGRES_DB: crack_db
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "hot_standby=on"
+    volumes:
+      - master-data:/var/lib/postgresql/data
+      - ./mestre-init/init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh
     ports:
       - "5432:5432"
 
   postgres-slave:
     image: postgres:15
     container_name: postgres-slave
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mestre_senha123
-      POSTGRES_DB: crack_db
+    entrypoint: ["/standby-setup.sh"]
+    volumes:
+      - slave-data:/var/lib/postgresql/data
+      - ./slave-init/standby-setup.sh:/standby-setup.sh
     ports:
       - "5433:5432"
     depends_on:
       - postgres-master
+
+volumes:
+  master-data:
+  slave-data:
