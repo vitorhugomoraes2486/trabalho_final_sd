@@ -24,6 +24,14 @@ def inicializar_banco_master():
                 status VARCHAR(20) NOT NULL
             );
         ''')
+        # Tabela auxiliar para centralizar o hash alvo da execução atual.
+        # Os Slaves consultam essa tabela (via réplica) em vez de usar um hash fixo no código.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS config (
+                chave VARCHAR(50) PRIMARY KEY,
+                valor VARCHAR(255) NOT NULL
+            );
+        ''')
         conn.commit()
         cursor.close()
         conn.close()
@@ -33,13 +41,28 @@ def inicializar_banco_master():
 
 @app.route("/api/iniciar", methods=["POST"])
 def iniciar_quebra():
-    """Gera os lotes correspondentes às letras do alfabeto no Master DB."""
+    """Recebe o hash do Cliente, grava na config e gera os lotes correspondentes às letras do alfabeto no Master DB."""
+    data = request.get_json(silent=True) or {}
+    hash_alvo = data.get("hash")
+
+    if not hash_alvo:
+        return jsonify({"ok": False, "erro": "Campo 'hash' não informado pelo Cliente."}), 400
+
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
         # Limpa execuções anteriores
         cursor.execute("TRUNCATE TABLE tarefas;")
+
+        # Centraliza o hash alvo da execução atual (upsert na tabela config)
+        cursor.execute(
+            """
+            INSERT INTO config (chave, valor) VALUES ('hash_alvo', %s)
+            ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
+            """,
+            (hash_alvo,)
+        )
         
         # Insere um lote para cada letra do alfabeto (a-z)
         alfabeto = "abcdefghijklmnopqrstuvwxyz"
@@ -53,15 +76,18 @@ def iniciar_quebra():
         cursor.close()
         conn.close()
         
-        print("[MESTRE] Lotes gerados no Master DB com sucesso!")
-        return jsonify({"ok": True, "msg": "Lotes criados no Master DB com sucesso!"}), 201
+        print(f"[MESTRE] Hash alvo '{hash_alvo}' registrado e lotes gerados no Master DB com sucesso!")
+        return jsonify({"ok": True, "msg": "Hash registrado e lotes criados no Master DB com sucesso!"}), 201
         
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
 
 @app.route("/api/atualizar-status", methods=["POST"])
 def atualizar_status():
-    """Endpoint HTTP (Linha Write do Slave) para atualizar o status da tarefa."""
+    """Endpoint HTTP (Linha Write do Slave) para atualizar o status da tarefa.
+    Quando o novo status é 'processando', o UPDATE só é aplicado se o lote
+    ainda estiver 'disponivel' — isso é o que de fato impede dois Slaves de
+    reservarem o mesmo lote simultaneamente (race condition)."""
     data = request.get_json()
     tarefa_id = data.get("id")
     novo_status = data.get("status")
@@ -69,15 +95,51 @@ def atualizar_status():
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE tarefas SET status = %s WHERE id = %s;",
-            (novo_status, tarefa_id)
-        )
+
+        if novo_status == "processando":
+            # Reserva só é válida se ninguém travou o lote antes
+            cursor.execute(
+                "UPDATE tarefas SET status = %s WHERE id = %s AND status = 'disponivel';",
+                (novo_status, tarefa_id)
+            )
+        else:
+            # Para 'concluido' (ou outros status), quem está atualizando já é o dono do lote
+            cursor.execute(
+                "UPDATE tarefas SET status = %s WHERE id = %s;",
+                (novo_status, tarefa_id)
+            )
+
+        linhas_afetadas = cursor.rowcount
         conn.commit()
         cursor.close()
         conn.close()
-        print(f"[MESTRE] Tarefa {tarefa_id} atualizada para: {novo_status}")
-        return jsonify({"ok": True})
+
+        reserva_valida = linhas_afetadas > 0
+
+        if reserva_valida:
+            print(f"[MESTRE] Tarefa {tarefa_id} atualizada para: {novo_status}")
+        else:
+            print(f"[MESTRE] Tarefa {tarefa_id} já estava reservada por outro Slave. Pedido rejeitado.")
+
+        return jsonify({"ok": reserva_valida})
+    except Exception as e:
+        return jsonify({"ok": False, "erro": str(e)}), 500
+
+@app.route("/api/hash-atual", methods=["GET"])
+def hash_atual():
+    """Permite que os Slaves consultem qual é o hash alvo da execução em curso."""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("SELECT valor FROM config WHERE chave = 'hash_alvo';")
+        linha = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if not linha:
+            return jsonify({"ok": False, "erro": "Nenhum hash alvo definido ainda."}), 404
+
+        return jsonify({"ok": True, "hash": linha[0]})
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
 
