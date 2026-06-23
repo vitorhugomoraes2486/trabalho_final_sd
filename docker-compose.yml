@@ -1,0 +1,22 @@
+services:
+  postgres-master:
+    image: postgres:15
+    container_name: postgres-master
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mestre_senha123
+      POSTGRES_DB: crack_db
+    ports:
+      - "5432:5432"
+
+  postgres-slave:
+    image: postgres:15
+    container_name: postgres-slave
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mestre_senha123
+      POSTGRES_DB: crack_db
+    ports:
+      - "5433:5432"
+    depends_on:
+      - postgres-master
