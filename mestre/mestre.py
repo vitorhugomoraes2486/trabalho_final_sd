@@ -63,6 +63,15 @@ def iniciar_quebra():
             """,
             (hash_alvo,)
         )
+
+        # Reseta a flag de término distribuído: toda nova execução começa "em_andamento".
+        # É essa flag que os Workers consultam a cada ciclo para saberem se devem parar.
+        cursor.execute(
+            """
+            INSERT INTO config (chave, valor) VALUES ('status_execucao', 'em_andamento')
+            ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
+            """
+        )
         
         # Insere um lote para cada letra do alfabeto (a-z)
         alfabeto = "abcdefghijklmnopqrstuvwxyz"
@@ -143,11 +152,46 @@ def hash_atual():
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
 
+@app.route("/api/status-execucao", methods=["GET"])
+def status_execucao():
+    """Permite que os Workers consultem se a execução atual já terminou
+    (alguém encontrou a senha) e, portanto, devem parar de processar."""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("SELECT valor FROM config WHERE chave = 'status_execucao';")
+        linha = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        status = linha[0] if linha else "em_andamento"
+        return jsonify({"ok": True, "status": status})
+    except Exception as e:
+        return jsonify({"ok": False, "erro": str(e)}), 500
+
 @app.route("/api/sucesso", methods=["POST"])
 def sucesso():
-    """Sinaliza o término do processamento quando a senha é encontrada."""
+    """Sinaliza o término do processamento quando a senha é encontrada.
+    Marca a flag global como 'finalizado' para que todos os outros Workers
+    parem de processar lotes assim que perceberem a mudança (terminação distribuída)."""
     data = request.get_json()
     senha_descoberta = data.get("senha")
+
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO config (chave, valor) VALUES ('status_execucao', 'finalizado')
+            ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
+            """
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"[ERRO] Não foi possível marcar status_execucao como finalizado: {e}")
+
     print(f"\n[SUCESSO] Um slave encontrou a senha: {senha_descoberta}!\n")
     return jsonify({"ok": True})
 

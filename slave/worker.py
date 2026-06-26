@@ -31,6 +31,18 @@ def buscar_hash_alvo():
         print(f"[ERRO] Não foi possível obter o hash alvo do Mestre: {e}")
     return None
 
+def execucao_finalizada():
+    """Consulta o Mestre para saber se algum outro Worker já encontrou a senha.
+    É essa checagem que permite a terminação distribuída: como nenhum Worker
+    tem visão direta dos outros, todos confiam nessa flag central no Mestre."""
+    try:
+        response = requests.get(f"{MESTRE_URL}/api/status-execucao")
+        if response.status_code == 200 and response.json().get("ok"):
+            return response.json().get("status") == "finalizado"
+    except Exception as e:
+        print(f"[ERRO] Não foi possível consultar o status de execução no Mestre: {e}")
+    return False
+
 def buscar_lote_disponivel():
     """Consulta o banco de réplica (5433) para encontrar uma tarefa livre."""
     try:
@@ -102,6 +114,12 @@ def iniciar_worker():
     print(f"[WORKER] Hash alvo recebido do Mestre: {HASH_ALVO}")
     
     while True:
+        # 0. Antes de tentar pegar um novo lote, verifica se outro Worker já
+        #    encontrou a senha. Se sim, este nó se desliga (terminação distribuída).
+        if execucao_finalizada():
+            print("[WORKER] Outro nó já encontrou a senha. Encerrando este Worker.")
+            sys.exit(0)
+
         # 1. Tenta buscar uma tarefa diretamente na réplica de leitura
         tarefa = buscar_lote_disponivel()
         
