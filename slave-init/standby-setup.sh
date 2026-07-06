@@ -13,7 +13,7 @@ if [ -z "$(ls -A "$PGDATA_DIR" 2>/dev/null)" ]; then
 
     # Arquivo de senha para autenticacao automatica (sem expor a senha no conninfo).
     # IMPORTANTE: precisa ficar na home do usuario "postgres" (/var/lib/postgresql),
-    # pois e' esse usuario que o processo do Postgres assume em runtime -- e e' ele
+    # pois é esse usuario que o processo do Postgres assume em runtime -- e é ele
     # quem precisa dessa senha para manter a conexao de streaming replication aberta
     # continuamente com o Master, nao so durante o pg_basebackup inicial.
     echo "postgres-master:5432:*:replicator:replica_senha123" > /var/lib/postgresql/.pgpass
