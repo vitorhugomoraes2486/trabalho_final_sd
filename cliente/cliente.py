@@ -6,7 +6,7 @@ import requests
 # OBS: ainda usando o IP/hostname físico (localhost). A resolução via DNS
 # logico (mestre-crack.local), prevista no relatorio, sera tratada em uma
 # implementacao futura.
-MESTRE_URL = "http://localhost:5000"
+MESTRE_URL = "http://mestre-crack.local:5000"
 
 INTERVALO_CONSULTA_SEGUNDOS = 3
 

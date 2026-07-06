@@ -6,7 +6,7 @@ import psycopg2
 import requests
 
 # URL do servidor coordenador Mestre (Flask) para requisições de controle
-MESTRE_URL = "http://localhost:5000"
+MESTRE_URL = "http://mestre-crack.local:5000"
 
 # Configuração de conexão focada estritamente no SLAVE DB (Leitura - Porta 5433)
 DB_SLAVE_CONFIG = {
