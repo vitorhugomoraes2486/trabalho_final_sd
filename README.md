@@ -105,7 +105,7 @@ Abra um ou múltiplos terminais em paralelo e execute o Worker para ver a divis�
 ```bash
 python worker.py
 ```
-> Novos Workers podem ser iniciados a qualquer momento durante a execução — eles se integram à fila automaticamente.
+> Novos Workers podem ser iniciados a qualquer momento durante a execução, eles se integram à fila automaticamente.
 
 
 <img width="532" height="664" alt="Arquitetura_password_cracker drawio" src="https://github.com/user-attachments/assets/e3957144-4ff3-4793-9147-24e0226446b8" />
