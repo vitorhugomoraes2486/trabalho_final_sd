@@ -1,4 +1,19 @@
 services:
+  mestre-app:
+    build: 
+      context: .
+      dockerfile: mestre/Dockerfile
+    container_name: mestre-app
+    restart: always
+    ports:
+      - "5000:5000"
+    networks:
+      distribuidos-net:
+        aliases:
+          - mestre-crack.local   # <- O DNS
+    depends_on:
+      - postgres-master
+
   postgres-master:
     image: postgres:15
     container_name: postgres-master
@@ -21,6 +36,8 @@ services:
       - ./mestre-init/init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh
     ports:
       - "5432:5432"
+    networks:
+      - distribuidos-net
 
   postgres-slave:
     image: postgres:15
@@ -33,7 +50,13 @@ services:
       - "5433:5432"
     depends_on:
       - postgres-master
+    networks:
+      - distribuidos-net
 
 volumes:
   master-data:
   slave-data:
+
+networks:
+  distribuidos-net:
+    name: dist_net

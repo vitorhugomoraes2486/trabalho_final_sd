@@ -1,11 +1,12 @@
 import hashlib
+import itertools
 import time
 import sys
 import psycopg2
 import requests
 
 # URL do servidor coordenador Mestre (Flask) para requisições de controle
-MESTRE_URL = "http://localhost:5000"
+MESTRE_URL = "http://mestre-crack.local:5000"
 
 # Configuração de conexão focada estritamente no SLAVE DB (Leitura - Porta 5433)
 DB_SLAVE_CONFIG = {
@@ -30,6 +31,18 @@ def buscar_hash_alvo():
     except Exception as e:
         print(f"[ERRO] Não foi possível obter o hash alvo do Mestre: {e}")
     return None
+
+def execucao_finalizada():
+    """Consulta o Mestre para saber se algum outro Worker já encontrou a senha.
+    É essa checagem que permite a terminação distribuída: como nenhum Worker
+    tem visão direta dos outros, todos confiam nessa flag central no Mestre."""
+    try:
+        response = requests.get(f"{MESTRE_URL}/api/status-execucao")
+        if response.status_code == 200 and response.json().get("ok"):
+            return response.json().get("status") == "finalizado"
+    except Exception as e:
+        print(f"[ERRO] Não foi possível consultar o status de execução no Mestre: {e}")
+    return False
 
 def buscar_lote_disponivel():
     """Consulta o banco de réplica (5433) para encontrar uma tarefa livre."""
@@ -70,21 +83,51 @@ def marcar_lote_concluido(tarefa_id):
     except Exception as e:
         print(f"[ERRO] Falha ao marcar lote como concluído: {e}")
 
+# Tamanho máximo de senha (em letras minúsculas) que cada lote tenta quebrar.
+# Com 5 letras e alfabeto de 26 caracteres, o espaço de busca total é de
+# ~12 milhões de combinações por lote (26^4), resolvido em segundos por Worker.
+TAMANHO_MAXIMO_SENHA = 5
+
+# A cada quantas tentativas o Worker verifica no Mestre se outro nó já
+# encontrou a senha. Com lotes menores (até 5 letras), 10.000 é suficiente
+# para responder rápido sem sobrecarregar o Mestre com requisições HTTP.
+INTERVALO_VERIFICACAO_TERMINO = 10_000
+
+# Sinal usado para diferenciar "não encontrou nada no lote" de
+# "abortou o lote porque outro nó já tinha terminado"
+ABORTADO_POR_TERMINO_GLOBAL = object()
+
 def quebrar_forca_bruta(letra_inicial):
-    """Gera combinações locais de strings na CPU começando com a letra do lote."""
+    """Gera combinações locais de strings na CPU, todas começando com a letra
+    do lote, testando primeiro os tamanhos menores (mais rápido de encontrar
+    senhas curtas) e aumentando progressivamente até TAMANHO_MAXIMO_SENHA.
+    Periodicamente verifica se outro nó já terminou a execução, para não
+    ficar "preso" processando um lote longo sem necessidade."""
     print(f"[PROCESSANDO] Iniciando busca exaustiva para o lote da letra: '{letra_inicial.upper()}'...")
-    
-    # Gerador simples de strings: combina a letra inicial do lote com mais 3 letras (palavras de 4 letras)
+
     alfabeto = "abcdefghijklmnopqrstuvwxyz"
-    for l2 in alfabeto:
-        for l3 in alfabeto:
-            for l4 in alfabeto:
-                palavra_teste = letra_inicial + l2 + l3 + l4
-                # Calcula o MD5 da string gerada
-                hash_calculado = hashlib.md5(palavra_teste.encode('utf-8')).hexdigest()
-                
-                if hash_calculado == HASH_ALVO:
-                    return palavra_teste  # Encontrou a senha!
+    contador = 0
+
+    # Testa primeiro o caso de a senha ser só a própria letra inicial (tamanho 1)
+    if hashlib.md5(letra_inicial.encode('utf-8')).hexdigest() == HASH_ALVO:
+        return letra_inicial
+
+    # Para os demais tamanhos (2 a TAMANHO_MAXIMO_SENHA), gera o restante da
+    # palavra com itertools.product, que é mais eficiente que loops aninhados
+    # manuais para um número variável de posições.
+    for tamanho in range(2, TAMANHO_MAXIMO_SENHA + 1):
+        for sufixo in itertools.product(alfabeto, repeat=tamanho - 1):
+            palavra_teste = letra_inicial + "".join(sufixo)
+            hash_calculado = hashlib.md5(palavra_teste.encode('utf-8')).hexdigest()
+
+            if hash_calculado == HASH_ALVO:
+                return palavra_teste  # Encontrou a senha!
+
+            contador += 1
+            if contador % INTERVALO_VERIFICACAO_TERMINO == 0:
+                if execucao_finalizada():
+                    return ABORTADO_POR_TERMINO_GLOBAL
+
     return None
 
 def iniciar_worker():
@@ -102,6 +145,12 @@ def iniciar_worker():
     print(f"[WORKER] Hash alvo recebido do Mestre: {HASH_ALVO}")
     
     while True:
+        # 0. Antes de tentar pegar um novo lote, verifica se outro Worker já
+        #    encontrou a senha. Se sim, este nó se desliga (terminação distribuída).
+        if execucao_finalizada():
+            print("[WORKER] Outro nó já encontrou a senha. Encerrando este Worker.")
+            sys.exit(0)
+
         # 1. Tenta buscar uma tarefa diretamente na réplica de leitura
         tarefa = buscar_lote_disponivel()
         
@@ -118,8 +167,13 @@ def iniciar_worker():
             
             # 3. Executa a computação exaustiva localmente
             resultado = quebrar_forca_bruta(letra_inicial)
-            
-            if resultado:
+
+            if resultado is ABORTADO_POR_TERMINO_GLOBAL:
+                # Outro nó já encontrou a senha enquanto este lote era processado.
+                # Não marca o lote como concluído (ele continua incompleto), só se desliga.
+                print("[WORKER] Outro nó já encontrou a senha durante o processamento deste lote. Encerrando.")
+                sys.exit(0)
+            elif resultado:
                 print(f"\n[💥 SUCESSO 💥] SENHA ENCONTRADA: {resultado}\n")
                 # Notifica o mestre do término global do algoritmo
                 requests.post(f"{MESTRE_URL}/api/sucesso", json={"senha": resultado})
