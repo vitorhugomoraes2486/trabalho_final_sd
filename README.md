@@ -53,7 +53,7 @@ O projeto final de Sistemas Distribuídos, tem como objetivo a implementação d
 
 O sistema é dividido em quatro componentes principais:
 
-    5.1 Cliente (`cliente.py`):** Interface utilizada pelo usuário final. Sua única função é enviar o hash alvo para o servidor Mestre e monitorar o progresso até a conclusão.
+   5.1 Cliente (`cliente.py`):** Interface utilizada pelo usuário final. Sua única função é enviar o hash alvo para o servidor Mestre e monitorar o progresso até a conclusão.
 * **Servidor Mestre (`mestre.py`):** O cérebro coordenador do sistema (desenvolvido em Flask). Ele não realiza força bruta; suas funções são receber requisições HTTP, gerar a fila de tarefas no banco de dados, gerenciar as atualizações de estado e centralizar a notificação de término.
 * **Nós Escravos (`worker.py`):** Scripts autônomos que contêm a lógica pesada de força bruta. Eles geram combinações de strings, computam hashes via `hashlib` na CPU e consomem a fila de tarefas de forma assíncrona.
 * **Camada de Dados Replicada (PostgreSQL via Docker):**
