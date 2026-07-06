@@ -63,7 +63,7 @@ O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HT
 * **Conteinerização:** Docker & Docker Compose.
 
 
-7. Como Executar o Projeto
+## 7. Como Executar o Projeto
 
 ### Pré-requisitos
 * Docker e Docker Compose instalados.
