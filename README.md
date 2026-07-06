@@ -77,14 +77,14 @@ O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HT
 
 7. Fluxos Principais do Sistema
 
-7.1 **Inicialização e DNS:** O Cliente faz uma resolução de nomes via DNS local para localizar o endereço lógico `mestre-crack.local` e envia o hash de destino[cite: 15].
-7.2 **Carga e Replicação Física:** O Mestre recebe o hash e insere 26 tarefas (uma para cada letra inicial do alfabeto de 'a' a 'z') com o status de `disponivel` no Master DB[cite: 11, 15]. O mecanismo interno do PostgreSQL replica instantaneamente essas linhas para o Slave DB[cite: 15].
-7.3 **Consumo Assíncrono (Read):** Os Workers consultam continuamente o Slave DB (Porta 5433) em busca de lotes livres[cite: 13, 15].
-7.4 **Reserva Segura (Write):** Ao escolher um lote, o Worker envia um `POST` ao Mestre[cite: 13, 15]. O Mestre aplica o `UPDATE` no Master DB apenas se a linha ainda estiver livre, propagando a trava pela replicação e impedindo concorrência[cite: 11, 15].
-7.5 **Término Distribuído:** O Worker executa a força bruta localmente[cite: 15]. Se encontrar o resultado, notifica o endpoint `/api/sucesso`[cite: 13, 15]. Os demais nós percebem a mudança de estado global nas suas checagens periódicas e abortam a execução.
+   7.1 **Inicialização e DNS:** O Cliente faz uma resolução de nomes via DNS local para localizar o endereço lógico `mestre-crack.local` e envia o hash de destino[cite: 15].
+   7.2 **Carga e Replicação Física:** O Mestre recebe o hash e insere 26 tarefas (uma para cada letra inicial do alfabeto de 'a' a 'z') com o status de `disponivel` no Master DB[cite: 11, 15]. O mecanismo interno do PostgreSQL replica instantaneamente essas linhas para o Slave DB[cite: 15].
+   7.3 **Consumo Assíncrono (Read):** Os Workers consultam continuamente o Slave DB (Porta 5433) em busca de lotes livres[cite: 13, 15].
+   7.4 **Reserva Segura (Write):** Ao escolher um lote, o Worker envia um `POST` ao Mestre[cite: 13, 15]. O Mestre aplica o `UPDATE` no Master DB apenas se a linha ainda estiver livre, propagando a trava pela replicação e impedindo concorrência[cite: 11, 15].
+   7.5 **Término Distribuído:** O Worker executa a força bruta localmente[cite: 15]. Se encontrar o resultado, notifica o endpoint `/api/sucesso`[cite: 13, 15]. Os demais nós percebem a mudança de estado global nas suas checagens periódicas e abortam a execução.
 
 
-4. Características de Sistemas Distribuídos Implementadas
+8. Características de Sistemas Distribuídos Implementadas
 
 * **Transparência de Localização:** O Cliente e os Workers interagem com a rede utilizando apenas o nome abstrato `http://mestre-crack.local:5000`[cite: 10, 13, 15]. A topologia física é oculta: o processamento e o banco de dados podem ser movidos de máquina na rede sem necessidade de alterar uma única linha de código nos programas[cite: 15].
 * **Escalabilidade Horizontal:** A arquitetura adota um modelo descentralizado[cite: 15]. Como o Mestre e o Slave DB não controlam ativamente a quantidade de nós, o sistema é elástico: novos terminais rodando o script do `worker.py` podem ser iniciados e acoplados ao processamento em tempo de execução para dividir a carga e acelerar a busca[cite: 15].
