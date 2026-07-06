@@ -52,8 +52,8 @@ def iniciar_quebra():
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # Limpa execuções anteriores
-        cursor.execute("TRUNCATE TABLE tarefas;")
+        # Limpa execuções anteriores (RESTART IDENTITY reseta o contador de IDs para 1)
+        cursor.execute("TRUNCATE TABLE tarefas RESTART IDENTITY;")
 
         # Centraliza o hash alvo da execução atual (upsert na tabela config)
         cursor.execute(
@@ -169,6 +169,27 @@ def status_execucao():
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
 
+@app.route("/api/resultado", methods=["GET"])
+def resultado():
+    """Permite que o Cliente consulte o resultado final: se já terminou e,
+    em caso positivo, qual foi a senha encontrada."""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT chave, valor FROM config WHERE chave IN ('status_execucao', 'senha_encontrada');"
+        )
+        linhas = dict(cursor.fetchall())
+        cursor.close()
+        conn.close()
+
+        status = linhas.get("status_execucao", "em_andamento")
+        senha = linhas.get("senha_encontrada")
+
+        return jsonify({"ok": True, "status": status, "senha": senha})
+    except Exception as e:
+        return jsonify({"ok": False, "erro": str(e)}), 500
+
 @app.route("/api/sucesso", methods=["POST"])
 def sucesso():
     """Sinaliza o término do processamento quando a senha é encontrada.
@@ -185,6 +206,14 @@ def sucesso():
             INSERT INTO config (chave, valor) VALUES ('status_execucao', 'finalizado')
             ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
             """
+        )
+        # Guarda a senha encontrada para que o Cliente possa consultar o resultado depois
+        cursor.execute(
+            """
+            INSERT INTO config (chave, valor) VALUES ('senha_encontrada', %s)
+            ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
+            """,
+            (senha_descoberta,)
         )
         conn.commit()
         cursor.close()
