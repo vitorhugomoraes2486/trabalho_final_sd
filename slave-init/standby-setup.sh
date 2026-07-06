@@ -1,9 +1,21 @@
-#!/bin/bash
-# Entrypoint customizado do Slave DB.
-# Na primeira execucao (volume vazio), clona o Master inteiro via pg_basebackup
-# e configura o modo standby (-R cria standby.signal + primary_conninfo automaticamente).
-# Nas execucoes seguintes (volume ja populado), apenas sobe o Postgres normalmente
-# e ele retoma a replicacao a partir de onde parou.
+# =============================================================================
+# standby-setup.sh — Entrypoint customizado do container postgres-slave
+#
+# Responsabilidade: configurar o Slave DB como uma réplica física (hot standby)
+# do Master DB, usando Streaming Replication nativa do PostgreSQL.
+#
+# Fluxo de execução:
+#   1ª vez (volume vazio):
+#     - Aguarda o Master ficar disponível na rede
+#     - Clona fisicamente o Master via pg_basebackup
+#     - A flag -R cria automaticamente o standby.signal e o primary_conninfo,
+#       colocando o Postgres em modo réplica ao subir
+#     - A partir daí, o Slave recebe atualizações contínuas via logs WAL
+#
+#   Execuções seguintes (volume já populado):
+#     - Pula a clonagem e sobe normalmente
+#     - O Postgres retoma a replicação de onde parou automaticamente
+# =============================================================================
 set -e
 
 PGDATA_DIR="/var/lib/postgresql/data"
