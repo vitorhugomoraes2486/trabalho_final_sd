@@ -49,6 +49,11 @@ O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HT
    4.5 **Término Distribuído:** O Worker executa a força bruta localmente. Se encontrar o resultado, notifica o endpoint `/api/sucesso`. Os demais nós percebem a mudança de estado global nas suas checagens periódicas e abortam a execução.
 
 
+<div align="center">
+   <img width="628" height="725" alt="Arquitetura_password_cracker drawio (1)" src="https://github.com/user-attachments/assets/3c8f17d8-5f42-4c46-bcfb-66311e5ddcda" />
+</div>
+
+
 ## 5. Características de Sistemas Distribuídos Implementadas
 
 * **Transparência de Localização:** O Cliente e os Workers interagem com a rede utilizando apenas o nome abstrato `http://mestre-crack.local:5000`. A topologia física é oculta: o processamento e o banco de dados podem ser movidos de máquina na rede sem necessidade de alterar uma única linha de código nos programas.
@@ -107,8 +112,6 @@ python worker.py
 ```
 > Novos Workers podem ser iniciados a qualquer momento durante a execução, eles se integram à fila automaticamente.
 
-
-<img width="532" height="664" alt="Arquitetura_password_cracker drawio" src="https://github.com/user-attachments/assets/e3957144-4ff3-4793-9147-24e0226446b8" />
 
 
 
