@@ -4,14 +4,14 @@
 O projeto final de Sistemas Distribuídos, tem como objetivo a implementação de características que apresentarão uma possibilidade de escalamento horiontal do projeto, unido a transparência de localização dos nós.
 
 
-1. Descrição Geral do Projeto.
+## 1. Descrição Geral do Projeto.
    
-     O trabalho é um sistema distribuído de computação paralela intensiva baseado na arquitetura Mestre/Escravo (Master/Slave), projetado para realizar a quebra de senhas criptografadas em hashes MD5 por meio de força bruta;
+   O trabalho é um sistema distribuído de computação paralela intensiva baseado na arquitetura Mestre/Escravo (Master/Slave), projetado para realizar a quebra de senhas criptografadas em hashes MD5 por meio de força bruta;
   
-     O objetivo principal do sistema é demonstrar  a eficiência na divisão de carga ao fatiar um problema complexo em múltiplos lotes independentes compartilhados na rede. O sistema adota Replicação de Banco de Dados para otimizar o fluxo de dados e mitigar gargalos de concorrência.
+   O objetivo principal do sistema é demonstrar  a eficiência na divisão de carga ao fatiar um problema complexo em múltiplos lotes independentes compartilhados na rede. O sistema adota Replicação de Banco de Dados para otimizar o fluxo de dados e mitigar gargalos de concorrência.
 
 
-2. Descrição da Arquitetura
+## 2. Descrição da Arquitetura
 
 O sistema é dividido em quatro componentes principais:
 
@@ -23,7 +23,7 @@ O sistema é dividido em quatro componentes principais:
     * **Slave DB (Porta 5433):** Banco de leitura exclusiva, que recebe os dados espelhados do Master via Streaming Replication (logs de WAL) e é consultado em massa pelos Workers.
 
 
-3. Interface e Endpoints (API do Mestre)
+## 3. Interface e Endpoints (API do Mestre)
 
 O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HTTP/JSON para interagir com o Cliente e com os Workers:
 
@@ -36,7 +36,7 @@ O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HT
 | `/api/resultado` | `GET` | Cliente | Retorna o status atual da execução e a senha encontrada, se finalizado. |
 | `/api/sucesso` | `POST` | Worker | Informa ao Mestre que a senha foi descriptografada com sucesso, encerrando o fluxo global. |
 
-4. Fluxos Principais do Sistema
+## 4. Fluxos Principais do Sistema
 
    4.1 **Inicialização e DNS:** O Cliente faz uma resolução de nomes via DNS local para localizar o endereço lógico `mestre-crack.local` e envia o hash de destino.
    
@@ -49,12 +49,12 @@ O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HT
    4.5 **Término Distribuído:** O Worker executa a força bruta localmente. Se encontrar o resultado, notifica o endpoint `/api/sucesso`. Os demais nós percebem a mudança de estado global nas suas checagens periódicas e abortam a execução.
 
 
-5. Características de Sistemas Distribuídos Implementadas
+## 5. Características de Sistemas Distribuídos Implementadas
 
 * **Transparência de Localização:** O Cliente e os Workers interagem com a rede utilizando apenas o nome abstrato `http://mestre-crack.local:5000`. A topologia física é oculta: o processamento e o banco de dados podem ser movidos de máquina na rede sem necessidade de alterar uma única linha de código nos programas.
 * **Escalabilidade Horizontal:** A arquitetura adota um modelo descentralizado. Como o Mestre e o Slave DB não controlam ativamente a quantidade de nós, o sistema é elástico: novos terminais rodando o script do `worker.py` podem ser iniciados e acoplados ao processamento em tempo de execução para dividir a carga e acelerar a busca.
 
-6. Tecnologias Utilizadas
+## 6. Tecnologias Utilizadas
 
 * **Linguagem:** Python 3;
 * **Framework Web:** Flask (Servidor Coordenador);
