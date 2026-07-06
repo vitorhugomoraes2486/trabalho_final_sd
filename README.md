@@ -53,7 +53,34 @@ O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HT
 
 * **Transparência de Localização:** O Cliente e os Workers interagem com a rede utilizando apenas o nome abstrato `http://mestre-crack.local:5000`. A topologia física é oculta: o processamento e o banco de dados podem ser movidos de máquina na rede sem necessidade de alterar uma única linha de código nos programas.
 * **Escalabilidade Horizontal:** A arquitetura adota um modelo descentralizado. Como o Mestre e o Slave DB não controlam ativamente a quantidade de nós, o sistema é elástico: novos terminais rodando o script do `worker.py` podem ser iniciados e acoplados ao processamento em tempo de execução para dividir a carga e acelerar a busca.
-    
+
+6. Tecnologias Utilizadas
+
+* **Linguagem:** Python 3;
+* **Framework Web:** Flask (Servidor Coordenador);
+* **Driver de Banco de Dados:** Psycopg2;
+* **Banco de Dados:** PostgreSQL 15 (Configurado para Streaming Replication);
+* **Conteinerização:** Docker & Docker Compose.
+
+
+7. Como Executar o Projeto
+
+### Pré-requisitos
+* Docker e Docker Compose instalados.
+* Python 3 instalado com as bibliotecas `requests` e `psycopg2-binary`.
+
+### Passo 1: Subir os Bancos Replicados (Docker)
+Na raiz do projeto, limpe os volumes antigos e inicie os containers:
+```bash
+docker compose down -v
+docker compose up -d
+```
+
+### Passo 2: Configurar o DNS Local (Windows)
+Para habilitar o uso do endereço lógico mestre-crack.local nativamente, execute o seu editor de texto como Administrador e abra o arquivo: C:\Windows\System32\drivers\etc\hosts. Adicione na linha abaixo ao final do arquivo e salve:
+```bash
+127.0.0.1       mestre-crack.local
+```
 
 
 <img width="532" height="664" alt="Arquitetura_password_cracker drawio" src="https://github.com/user-attachments/assets/e3957144-4ff3-4793-9147-24e0226446b8" />
