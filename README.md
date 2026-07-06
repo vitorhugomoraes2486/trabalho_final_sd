@@ -69,35 +69,43 @@ O Servidor Coordenador (Mestre) expõe uma interface de comunicação via API HT
 * Docker e Docker Compose instalados.
 * Python 3 instalado com as bibliotecas `requests` e `psycopg2-binary`.
 
-### Passo 1: Subir os Bancos Replicados (Docker)
-Na raiz do projeto, limpe os volumes antigos e inicie os containers:
+### Passo 1: Subir a Infraestrutura (Docker)
+Na raiz do projeto, limpe os volumes antigos e inicie todos os containers (PostgreSQL Master, PostgreSQL Slave e o Servidor Mestre):
 ```bash
 docker compose down -v
-docker compose up -d
+docker compose up --build
 ```
+> O `--build` é necessário para garantir que o container do Mestre seja reconstruído com o código mais recente. Aguarde as confirmações nos logs:
+> - `postgres-master | database system is ready to accept connections`
+> - `postgres-slave  | started streaming WAL from primary at ...`
+> - `mestre-app      | Running on http://0.0.0.0:5000`
 
 ### Passo 2: Configurar o DNS Local (Windows)
 Para habilitar o uso do endereço lógico mestre-crack.local nativamente, execute o seu editor de texto como Administrador e abra o arquivo: C:\Windows\System32\drivers\etc\hosts. Adicione na linha abaixo ao final do arquivo e salve:
 ```bash
 127.0.0.1       mestre-crack.local
 ```
+> Se os Workers forem rodar em outra máquina da rede, substitua `127.0.0.1` pelo IP da máquina que está rodando o Docker.
 
-### Passo 3: Iniciar o Servidor Mestre
+### Passo 3: Calcular o Hash da Senha Alvo
+Antes de iniciar o Cliente, calcule o hash MD5 da senha que deseja quebrar:
 ```bash
-python mestre.py
+python -c "import hashlib; print(hashlib.md5('gato'.encode()).hexdigest())"
 ```
 
 ### Passo 4: Iniciar o Cliente e Enviar o Hash
+Em um novo terminal, execute o Cliente e insira o hash calculado no passo anterior:
 ```bash
 python cliente.py
 ```
-Insira o hash MD5 de teste.
+O Cliente ficará aguardando o resultado automaticamente.
 
 ### Passo 5: Iniciar um ou mais Workers
-Abra um ou múltiplos terminais em paralelo e execute o worker para ver a divisão de carga em tempo real:
+Abra um ou múltiplos terminais em paralelo e execute o Worker para ver a divisão de carga em tempo real:
 ```bash
 python worker.py
 ```
+> Novos Workers podem ser iniciados a qualquer momento durante a execução — eles se integram à fila automaticamente.
 
 
 <img width="532" height="664" alt="Arquitetura_password_cracker drawio" src="https://github.com/user-attachments/assets/e3957144-4ff3-4793-9147-24e0226446b8" />
