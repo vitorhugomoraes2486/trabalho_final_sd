@@ -82,6 +82,23 @@ Para habilitar o uso do endereço lógico mestre-crack.local nativamente, execut
 127.0.0.1       mestre-crack.local
 ```
 
+### Passo 3: Iniciar o Servidor Mestre
+```bash
+python mestre.py
+```
+
+### Passo 4: Iniciar o Cliente e Enviar o Hash
+```bash
+python cliente.py
+```
+Insira o hash MD5 de teste.
+
+### Passo 5: Iniciar um ou mais Workers
+Abra um ou múltiplos terminais em paralelo e execute o worker para ver a divisão de carga em tempo real:
+```bash
+python worker.py
+```
+
 
 <img width="532" height="664" alt="Arquitetura_password_cracker drawio" src="https://github.com/user-attachments/assets/e3957144-4ff3-4793-9147-24e0226446b8" />
 
