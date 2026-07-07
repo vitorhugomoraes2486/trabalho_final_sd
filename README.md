@@ -110,32 +110,5 @@ python worker.py
 ```
 > Novos Workers podem ser iniciados a qualquer momento durante a execução, eles se integram à fila automaticamente.
 
-### Passo 2: Configurar o DNS Local (Windows)
-Para habilitar o uso do endereço lógico mestre-crack.local nativamente, execute o seu editor de texto como Administrador e abra o arquivo: C:\Windows\System32\drivers\etc\hosts. Adicione na linha abaixo ao final do arquivo e salve:
-```bash
-127.0.0.1       mestre-crack.local
-```
-> Se os Workers forem rodar em outra máquina da rede, substitua `127.0.0.1` pelo IP da máquina que está rodando o Docker.
-
-### Passo 3: Calcular o Hash da Senha Alvo
-Antes de iniciar o Cliente, calcule o hash MD5 da senha que deseja quebrar:
-```bash
-python -c "import hashlib; print(hashlib.md5('gato'.encode()).hexdigest())"
-```
-
-### Passo 4: Iniciar o Cliente e Enviar o Hash
-Em um novo terminal, execute o Cliente e insira o hash calculado no passo anterior:
-```bash
-python cliente.py
-```
-O Cliente ficará aguardando o resultado automaticamente.
-
-### Passo 5: Iniciar um ou mais Workers
-Abra um ou múltiplos terminais em paralelo e execute o Worker para ver a divisão de carga em tempo real:
-```bash
-python worker.py
-```
-> Novos Workers podem ser iniciados a qualquer momento durante a execução, eles se integram à fila automaticamente.
-
 
 
