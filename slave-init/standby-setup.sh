@@ -4,12 +4,12 @@
 # usando Streaming Replication nativa do PostgreSQL.
 #
 # 1a vez (volume vazio):
-#   - Clona o Master via pg_basebackup
-#   - Flag -R cria standby.signal + primary_conninfo automaticamente
-#   - Slave passa a receber atualizacoes via logs WAL
+#   - Clona o Master via pg_basebackup;
+#   - Flag -R cria standby.signal + primary_conninfo automaticamente;
+#   - Slave passa a receber atualizacoes via logs WAL.
 #
 # Execucoes seguintes (volume populado):
-#   - Sobe normalmente e retoma a replicacao existente
+#   - Sobe normalmente e retoma a replicacao existente.
 set -e
 
 PGDATA_DIR="/var/lib/postgresql/data"
