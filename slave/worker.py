@@ -1,3 +1,10 @@
+# Worker (Nó Escravo) do DistriCrack
+# Responsabilidades:
+#   - Consultar o Slave DB (porta 5433) para buscar lotes disponíveis
+#   - Reservar lotes via HTTP no Mestre (evitando race condition)
+#   - Executar a força bruta localmente na CPU
+#   - Notificar o Mestre ao encontrar a senha (terminação distribuída)
+
 import hashlib
 import itertools
 import time
@@ -8,7 +15,7 @@ import requests
 # URL do servidor coordenador Mestre (Flask) para requisições de controle
 MESTRE_URL = "http://mestre-crack.local:5000"
 
-# Configuração de conexão focada estritamente no SLAVE DB (Leitura - Porta 5433)
+# Configuração de conexão focada estritamente no SLAVE DB
 DB_SLAVE_CONFIG = {
     "host": "localhost",
     "database": "crack_db",
@@ -45,7 +52,7 @@ def execucao_finalizada():
     return False
 
 def buscar_lote_disponivel():
-    """Consulta o banco de réplica (5433) para encontrar uma tarefa livre."""
+    """Consulta o banco de réplica para encontrar uma tarefa livre."""
     try:
         conn = psycopg2.connect(**DB_SLAVE_CONFIG)
         cursor = conn.cursor()
@@ -84,8 +91,6 @@ def marcar_lote_concluido(tarefa_id):
         print(f"[ERRO] Falha ao marcar lote como concluído: {e}")
 
 # Tamanho máximo de senha (em letras minúsculas) que cada lote tenta quebrar.
-# Com 5 letras e alfabeto de 26 caracteres, o espaço de busca total é de
-# ~12 milhões de combinações por lote (26^4), resolvido em segundos por Worker.
 TAMANHO_MAXIMO_SENHA = 5
 
 # A cada quantas tentativas o Worker verifica no Mestre se outro nó já
@@ -146,12 +151,12 @@ def iniciar_worker():
     
     while True:
         # 0. Antes de tentar pegar um novo lote, verifica se outro Worker já
-        #    encontrou a senha. Se sim, este nó se desliga (terminação distribuída).
+        #    encontrou a senha. Se sim, este nó se desliga.
         if execucao_finalizada():
             print("[WORKER] Outro nó já encontrou a senha. Encerrando este Worker.")
             sys.exit(0)
 
-        # 1. Tenta buscar uma tarefa diretamente na réplica de leitura
+        # 1. Tenta buscar uma tarefa diretamente na réplica de leitura.
         tarefa = buscar_lote_disponivel()
         
         if not tarefa:
@@ -161,7 +166,7 @@ def iniciar_worker():
             
         tarefa_id, letra_inicial = tarefa
         
-        # 2. Tenta fazer a reserva enviando a requisição para o Mestre Flask
+        # 2. Tenta fazer a reserva enviando a requisição para o Mestre Flask.
         if reservar_lote(tarefa_id):
             print(f"[LOTE CAPTURADO] ID: {tarefa_id} | Letra Inicial: '{letra_inicial}'")
             
@@ -170,11 +175,11 @@ def iniciar_worker():
 
             if resultado is ABORTADO_POR_TERMINO_GLOBAL:
                 # Outro nó já encontrou a senha enquanto este lote era processado.
-                # Não marca o lote como concluído (ele continua incompleto), só se desliga.
+                # Não marca o lote como concluído, só se desliga.
                 print("[WORKER] Outro nó já encontrou a senha durante o processamento deste lote. Encerrando.")
                 sys.exit(0)
             elif resultado:
-                print(f"\n[💥 SUCESSO 💥] SENHA ENCONTRADA: {resultado}\n")
+                print(f"\n[SUCESSO] SENHA ENCONTRADA: {resultado}\n")
                 # Notifica o mestre do término global do algoritmo
                 requests.post(f"{MESTRE_URL}/api/sucesso", json={"senha": resultado})
                 sys.exit(0)
@@ -183,7 +188,7 @@ def iniciar_worker():
                 marcar_lote_concluido(tarefa_id)
         else:
             # Caso outro Worker tenha sido milisegundos mais rápido e reservado o lote antes,
-            # o Mestre vai rejeitar o nosso pedido. O nó apenas avança para o próximo.
+            # o Mestre vai rejeitar o pedido. O nó apenas avança para o próximo.
             print(f"[CONCORRÊNCIA] O lote {tarefa_id} já foi pego por outro nó. Tentando o próximo...")
             time.sleep(1)
 

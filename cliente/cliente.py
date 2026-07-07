@@ -3,9 +3,8 @@ import sys
 import requests
 
 # URL do servidor coordenador Mestre (Flask).
-# OBS: ainda usando o IP/hostname físico (localhost). A resolução via DNS
-# logico (mestre-crack.local), prevista no relatorio, sera tratada em uma
-# implementacao futura.
+# Via DNS logico (mestre-crack.local).
+
 MESTRE_URL = "http://mestre-crack.local:5000"
 
 INTERVALO_CONSULTA_SEGUNDOS = 3

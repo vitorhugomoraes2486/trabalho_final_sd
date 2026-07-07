@@ -1,11 +1,13 @@
+import time
 import psycopg2
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-# Configurações de conexão com o Postgres Master (Porta 5432)
+# Configurações de conexão com o Postgres Master (Porta 5432).
+
 DB_CONFIG = {
-    "host": "localhost",
+    "host": "postgres-master",
     "database": "crack_db",
     "user": "postgres",
     "password": "mestre_senha123",
@@ -13,31 +15,34 @@ DB_CONFIG = {
 }
 
 def inicializar_banco_master():
-    """Conecta no Master DB para criar a tabela de lotes se não existir."""
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS tarefas (
-                id SERIAL PRIMARY KEY,
-                letra_inicial CHAR(1) NOT NULL,
-                status VARCHAR(20) NOT NULL
-            );
-        ''')
-        # Tabela auxiliar para centralizar o hash alvo da execução atual.
-        # Os Slaves consultam essa tabela (via réplica) em vez de usar um hash fixo no código.
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS config (
-                chave VARCHAR(50) PRIMARY KEY,
-                valor VARCHAR(255) NOT NULL
-            );
-        ''')
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("[DATABASE] Tabela 'tarefas' verificada/criada com sucesso no Master DB.")
-    except Exception as e:
-        print(f"[ERRO DATABASE] Não foi possível inicializar o banco: {e}")
+    """Conecta no Master DB para criar a tabela de lotes se não existir.
+    Tenta repetidamente até o postgres-master estar pronto — necessário porque
+    o container mestre-app pode subir antes do banco aceitar conexões."""
+    while True:
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS tarefas (
+                    id SERIAL PRIMARY KEY,
+                    letra_inicial CHAR(1) NOT NULL,
+                    status VARCHAR(20) NOT NULL
+                );
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS config (
+                    chave VARCHAR(50) PRIMARY KEY,
+                    valor VARCHAR(255) NOT NULL
+                );
+            ''')
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print("[DATABASE] Tabela 'tarefas' verificada/criada com sucesso no Master DB.")
+            break
+        except Exception as e:
+            print(f"[DATABASE] Banco ainda não disponível, tentando novamente em 3s... ({e})")
+            time.sleep(3)
 
 @app.route("/api/iniciar", methods=["POST"])
 def iniciar_quebra():
@@ -51,7 +56,7 @@ def iniciar_quebra():
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        
+
         # Limpa execuções anteriores (RESTART IDENTITY reseta o contador de IDs para 1)
         cursor.execute("TRUNCATE TABLE tarefas RESTART IDENTITY;")
 
@@ -64,15 +69,14 @@ def iniciar_quebra():
             (hash_alvo,)
         )
 
-        # Reseta a flag de término distribuído: toda nova execução começa "em_andamento".
-        # É essa flag que os Workers consultam a cada ciclo para saberem se devem parar.
+        # Reseta a flag de término distribuído
         cursor.execute(
             """
             INSERT INTO config (chave, valor) VALUES ('status_execucao', 'em_andamento')
             ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
             """
         )
-        
+
         # Insere um lote para cada letra do alfabeto (a-z)
         alfabeto = "abcdefghijklmnopqrstuvwxyz"
         for letra in alfabeto:
@@ -80,39 +84,36 @@ def iniciar_quebra():
                 "INSERT INTO tarefas (letra_inicial, status) VALUES (%s, 'disponivel');",
                 (letra,)
             )
-            
+
         conn.commit()
         cursor.close()
         conn.close()
-        
+
         print(f"[MESTRE] Hash alvo '{hash_alvo}' registrado e lotes gerados no Master DB com sucesso!")
         return jsonify({"ok": True, "msg": "Hash registrado e lotes criados no Master DB com sucesso!"}), 201
-        
+
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
 
 @app.route("/api/atualizar-status", methods=["POST"])
 def atualizar_status():
-    """Endpoint HTTP (Linha Write do Slave) para atualizar o status da tarefa.
+    """Endpoint HTTP para atualizar o status da tarefa.
     Quando o novo status é 'processando', o UPDATE só é aplicado se o lote
-    ainda estiver 'disponivel' — isso é o que de fato impede dois Slaves de
-    reservarem o mesmo lote simultaneamente (race condition)."""
+    ainda estiver 'disponivel' — isso impede race condition entre Workers."""
     data = request.get_json()
     tarefa_id = data.get("id")
     novo_status = data.get("status")
-    
+
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
         if novo_status == "processando":
-            # Reserva só é válida se ninguém travou o lote antes
             cursor.execute(
                 "UPDATE tarefas SET status = %s WHERE id = %s AND status = 'disponivel';",
                 (novo_status, tarefa_id)
             )
         else:
-            # Para 'concluido' (ou outros status), quem está atualizando já é o dono do lote
             cursor.execute(
                 "UPDATE tarefas SET status = %s WHERE id = %s;",
                 (novo_status, tarefa_id)
@@ -154,8 +155,7 @@ def hash_atual():
 
 @app.route("/api/status-execucao", methods=["GET"])
 def status_execucao():
-    """Permite que os Workers consultem se a execução atual já terminou
-    (alguém encontrou a senha) e, portanto, devem parar de processar."""
+    """Permite que os Workers consultem se a execução atual já terminou."""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -171,8 +171,7 @@ def status_execucao():
 
 @app.route("/api/resultado", methods=["GET"])
 def resultado():
-    """Permite que o Cliente consulte o resultado final: se já terminou e,
-    em caso positivo, qual foi a senha encontrada."""
+    """Permite que o Cliente consulte o resultado final."""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -192,9 +191,7 @@ def resultado():
 
 @app.route("/api/sucesso", methods=["POST"])
 def sucesso():
-    """Sinaliza o término do processamento quando a senha é encontrada.
-    Marca a flag global como 'finalizado' para que todos os outros Workers
-    parem de processar lotes assim que perceberem a mudança (terminação distribuída)."""
+    """Sinaliza o término do processamento quando a senha é encontrada."""
     data = request.get_json()
     senha_descoberta = data.get("senha")
 
@@ -207,7 +204,6 @@ def sucesso():
             ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
             """
         )
-        # Guarda a senha encontrada para que o Cliente possa consultar o resultado depois
         cursor.execute(
             """
             INSERT INTO config (chave, valor) VALUES ('senha_encontrada', %s)
@@ -226,5 +222,4 @@ def sucesso():
 
 if __name__ == "__main__":
     inicializar_banco_master()
-    # Roda o Flask na porta 5000
     app.run(debug=True, host="0.0.0.0", port=5000)
