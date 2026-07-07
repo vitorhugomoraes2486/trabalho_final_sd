@@ -3,17 +3,17 @@ services:
     build: 
       context: .
       dockerfile: mestre/Dockerfile
-    container_name: mestre-app  # Nome lógico do Mestre na rede Docker.
-                                # Resolve automaticamente para o container mestre-app.
-                                # Fora do Docker, configurado no arquivo hosts do SO.
-                                # Implementa a Transparência de Localização do sistema.
+    container_name: mestre-app 
     restart: always
     ports:
       - "5000:5000"
     networks:
       distribuidos-net:
         aliases:
-          - mestre-crack.local   # <- O DNS
+          - mestre-crack.local  # Nome lógico do Mestre na rede Docker.
+                                # Resolve automaticamente para o container mestre-app.
+                                # Fora do Docker, configurado no arquivo hosts do SO.
+                                # Implementa a Transparência de Localização do sistema.
     depends_on:
       - postgres-master
 
